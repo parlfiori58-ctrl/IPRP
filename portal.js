@@ -1,6 +1,8 @@
 const fs = require("node:fs");
+const path = require("node:path");
 const crypto = require("node:crypto");
 const express = require("express");
+const { EmbedBuilder } = require("discord.js");
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -50,6 +52,64 @@ function formatDate(value) {
     timeStyle: "short",
     timeZone: "Europe/Rome"
   }).format(date);
+}
+
+function createFineEmbed(fine, title = "📄 Verbale di contravvenzione") {
+  const paid = fine.stato === "PAGATA";
+  return new EmbedBuilder()
+    .setColor(paid ? 0x57f287 : 0xed4245)
+    .setTitle(title)
+    .setDescription("Verbale amministrativo registrato nel database civile IPRP.")
+    .addFields(
+      {
+        name: "Informazioni sul sanzionato",
+        value: `**Generalità:** ${fine.nome} ${fine.cognome}\n**Utente Discord:** <@${fine.userId}>`,
+        inline: false
+      },
+      {
+        name: "Violazione contestata",
+        value: `**Reato:** ${String(fine.reato).slice(0, 450)}\n**Descrizione:** ${String(fine.descrizione).slice(0, 550)}`,
+        inline: false
+      },
+      {
+        name: "Sanzione pecuniaria",
+        value: `**Importo:** ${formatMoney(fine.importo)}\n**Stato:** ${paid ? "✅ PAGATA" : "⏳ PENDENTE"}\n**ID multa:** \`${fine.id}\``,
+        inline: false
+      },
+      {
+        name: "Dati dell’agente",
+        value: `**Agente:** ${String(fine.agente).slice(0, 300)}\n**Emessa il:** ${formatDate(fine.creataIl)}`,
+        inline: false
+      }
+    )
+    .setFooter({ text: "IPRP • Registro sanzioni" })
+    .setTimestamp(new Date(fine.creataIl));
+}
+
+function createArrestEmbed(arrest, title = "🚔 Registro di arresto") {
+  return new EmbedBuilder()
+    .setColor(0xed4245)
+    .setTitle(title)
+    .setDescription("Rapporto di arresto registrato nella fedina penale civile IPRP.")
+    .addFields(
+      {
+        name: "Generalità dell’arrestato",
+        value: `**Nome e cognome:** ${String(arrest.nomeCognome).slice(0, 250)}\n**Data di nascita:** ${arrest.dataNascita}\n**Età:** ${arrest.eta}\n**Cittadinanza:** ${String(arrest.cittadinanza).slice(0, 150)}\n**Città di residenza:** ${String(arrest.cittaResidenza).slice(0, 200)}\n**Numero di telefono:** ${String(arrest.numeroTelefono).slice(0, 250)}\n**Utente Discord:** <@${arrest.userId}>`,
+        inline: false
+      },
+      {
+        name: "Informazioni sull’arresto",
+        value: `**Data dell’accaduto:** ${String(arrest.data).slice(0, 100)}\n**Reati:** ${String(arrest.reati).slice(0, 500)}\n**Descrizione:** ${String(arrest.descrizioneAccaduto).slice(0, 650)}`,
+        inline: false
+      },
+      {
+        name: "Dati dell’agente",
+        value: `**Firma:** ${String(arrest.firmaAgente).slice(0, 300)}\n**ID arresto:** \`${arrest.id}\`\n**Registrato il:** ${formatDate(arrest.registratoIl)}`,
+        inline: false
+      }
+    )
+    .setFooter({ text: "IPRP • Fedina penale" })
+    .setTimestamp(new Date(arrest.registratoIl));
 }
 
 function safeEqual(a, b) {
@@ -182,11 +242,38 @@ function startFdoPortal({ databaseFile, port = 3000, client = null, arrestsChann
     }
   };
 
-  const writeDb = (db) => {
+  const writeDb = (db, reason = "portale") => {
     db.ultimoAggiornamento = new Date().toISOString();
-    const temp = `${databaseFile}.portal.tmp`;
+
+    const dataDir = path.dirname(databaseFile);
+    const temp = path.join(dataDir, "iprp_civili.portal.tmp.json");
+    const previous = path.join(dataDir, "iprp_civili.previous.json");
+    const backupDir = path.join(dataDir, "backups");
+
+    fs.mkdirSync(dataDir, { recursive: true });
+    fs.mkdirSync(backupDir, { recursive: true });
+
+    if (fs.existsSync(databaseFile)) {
+      try {
+        fs.copyFileSync(databaseFile, previous);
+      } catch {}
+    }
+
     fs.writeFileSync(temp, JSON.stringify(db, null, 2), "utf8");
     fs.renameSync(temp, databaseFile);
+
+    try {
+      const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const backup = path.join(backupDir, `iprp_civili-${stamp}-${reason}.json`);
+      fs.copyFileSync(databaseFile, backup);
+
+      const files = fs.readdirSync(backupDir)
+        .filter(name => name.startsWith("iprp_civili-") && name.endsWith(".json"))
+        .map(name => path.join(backupDir, name))
+        .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
+
+      for (const file of files.slice(30)) fs.unlinkSync(file);
+    } catch {}
   };
 
   const sendDirectMessage = async (userId, payload) => {
@@ -306,13 +393,16 @@ function startFdoPortal({ databaseFile, port = 3000, client = null, arrestsChann
       id: generateRecordId("MUL"), userId: id, nome: d.nome, cognome: d.cognome,
       reato: String(req.body.reato || "").trim(), importo,
       descrizione: String(req.body.descrizione || "").trim(), agente: String(req.body.agente || "").trim(),
-      agentePortale: req.portalUser, stato: "PENDENTE", creataIl: new Date().toISOString(), pagataIl: null
+      agentePortale: req.portalUser, origine: "PORTALE_FDO", stato: "PENDENTE", creataIl: new Date().toISOString(), pagataIl: null
     };
     db.multe[fine.id] = fine;
     user.multe ||= [];
     user.multe.push(fine.id);
-    writeDb(db);
-    await sendDirectMessage(id, { content: `È stata registrata una multa a tuo carico. ID: ${fine.id}. Importo: ${formatMoney(fine.importo)}.` });
+    writeDb(db, "multa-portale");
+    await sendDirectMessage(id, {
+      content: `Hai ricevuto una multa. Per pagarla usa \`/paga-multa\` con ID \`${fine.id}\`.`,
+      embeds: [createFineEmbed(fine)]
+    });
     res.redirect(`/cittadino/${encodeURIComponent(id)}?esito=multa`);
   });
 
@@ -357,18 +447,26 @@ function startFdoPortal({ databaseFile, port = 3000, client = null, arrestsChann
       cittaResidenza: String(req.body.cittaResidenza || "").trim(), eta: age,
       numeroTelefono: String(req.body.numeroTelefono || "").trim(), reati: String(req.body.reati || "").trim(),
       descrizioneAccaduto: String(req.body.descrizioneAccaduto || "").trim(), firmaAgente: String(req.body.firmaAgente || "").trim(),
-      agentePortale: req.portalUser, data: formatDate(now), dataEventoTimestamp: now,
+      agentePortale: req.portalUser, origine: "PORTALE_FDO", data: formatDate(now), dataEventoTimestamp: now,
       registratoIl: new Date(now).toISOString(), registratoTimestamp: now
     };
     db.arresti[arrest.id] = arrest;
     user.fedinaPenale ||= [];
     user.fedinaPenale.push(arrest.id);
-    writeDb(db);
-    await sendDirectMessage(id, { content: `È stato registrato un arresto nella tua fedina penale. ID: ${arrest.id}.` });
+    writeDb(db, "arresto-portale");
+    await sendDirectMessage(id, {
+      content: "È stato registrato un arresto nella tua fedina penale.",
+      embeds: [createArrestEmbed(arrest)]
+    });
     if (client && arrestsChannelId) {
       try {
         const channel = await client.channels.fetch(arrestsChannelId);
-        if (channel?.isTextBased()) await channel.send({ content: `Nuovo arresto registrato dal Portale FDO: ${arrest.nomeCognome} — ID ${arrest.id}` });
+        if (channel?.isTextBased()) {
+          await channel.send({
+            content: `Nuovo arresto registrato per <@${id}>.`,
+            embeds: [createArrestEmbed(arrest)]
+          });
+        }
       } catch {}
     }
     res.redirect(`/cittadino/${encodeURIComponent(id)}?esito=arresto`);
