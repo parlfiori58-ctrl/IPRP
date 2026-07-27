@@ -2200,7 +2200,6 @@ client.on(Events.InteractionCreate, async interaction => {
 client.once(Events.ClientReady, async bot => {
   console.log(`✅ Bot online come ${bot.user.tag}`);
   caricaDatabase();
-  startFdoPortal({ databaseFile: DATABASE_FILE, port: PORTALE_FDO_PORT });
   avviaBackupPeriodico();
   avviaPresenzaAlternata(bot);
   await ripristinaTimerSequestri();
@@ -2229,6 +2228,8 @@ process.on("unhandledRejection", errore => {
 
 (async () => {
   try {
+    caricaDatabase();
+    startFdoPortal({ databaseFile: DATABASE_FILE, port: PORTALE_FDO_PORT });
     await registraComandi();
     await client.login(TOKEN);
   } catch (errore) {

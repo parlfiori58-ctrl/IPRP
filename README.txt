@@ -1,42 +1,25 @@
-IPRP BOT + PORTALE FDO — VERSIONE PRONTA PER RENDER
+IPRP BOT + PORTALE FDO — VERSIONE CORRETTA
 
-CONTENUTO
-- index.js: bot Discord completo + comando /portale-fdo
-- portal.js: sito Portale FDO
-- package.json: dipendenze e comando di avvio
-- render.yaml: configurazione automatica Render con disco persistente
-- .env.example: esempio variabili
+1. Carica tutti i file di questa cartella nel repository GitHub, sostituendo quelli vecchi.
+2. Su Render apri il servizio e premi Manual Deploy > Deploy latest commit.
+3. Controlla le variabili Environment:
+   DISCORD_TOKEN
+   CLIENT_ID
+   GUILD_ID
+   PORTALE_USER
+   PORTALE_PASSWORD
+   PORTALE_FDO_URL=https://NOME-SERVIZIO.onrender.com
+   DATA_DIR=/var/data (solo se hai il disco persistente montato su /var/data)
+4. Apri https://NOME-SERVIZIO.onrender.com/login
+5. Accedi con PORTALE_USER e PORTALE_PASSWORD.
 
-COME PUBBLICARLO DA IPHONE
-1. Estrai questo ZIP nell’app File.
-2. Carica tutti i file in un repository GitHub. NON caricare mai il tuo file .env.
-3. Su Render scegli New > Blueprint.
-4. Collega il repository GitHub contenente render.yaml.
-5. Inserisci le variabili richieste:
-   DISCORD_TOKEN = token del bot
-   CLIENT_ID = ID applicazione Discord
-   GUILD_ID = ID server Discord
-   PORTALE_PASSWORD = password scelta per il portale
-   PORTALE_FDO_URL = inizialmente puoi lasciare un valore provvisorio
-6. Crea il servizio. Render genererà un link simile a:
-   https://iprp-bot-portale-fdo.onrender.com
-7. Torna nelle variabili del servizio e imposta:
-   PORTALE_FDO_URL=https://iprp-bot-portale-fdo.onrender.com
-8. Salva e fai Manual Deploy > Deploy latest commit.
-9. Nel server Discord usa /portale-fdo.
+CORREZIONI:
+- /health è pubblico e funziona con il controllo salute di Render.
+- Il sito parte prima del login Discord, quindi non mostra più una pagina vuota se il bot tarda a connettersi.
+- Login HTML con cookie sicuro, invece del vecchio popup Basic Auth.
+- Pagina 404 personalizzata.
+- Dashboard, cittadini, multe, fedina penale e veicoli.
+- I dati vengono letti direttamente da iprp_civili.json ad ogni richiesta: ogni modifica del bot compare automaticamente nel portale.
 
-LOGIN PORTALE
-Utente predefinito: fdo
-Password: il valore impostato in PORTALE_PASSWORD
-
-SALVATAGGIO DATI
-Il progetto usa DATA_DIR=/var/data e il Blueprint crea un disco persistente da 1 GB.
-Il database, la copia precedente e i backup vengono salvati nel disco e rimangono dopo riavvii e deploy.
-Il disco persistente richiede un servizio Render a pagamento. Senza disco, il filesystem Render è temporaneo e i dati possono sparire dopo riavvii o nuovi deploy.
-
-COMANDI LOCALI
-npm install
-npm start
-
-CONTROLLO
-npm run check
+IMPORTANTE SUI DATI:
+Il disco persistente di Render è necessario per conservare il file JSON attraverso deploy e riavvii. Senza disco persistente il filesystem di Render è temporaneo.
