@@ -2229,7 +2229,7 @@ process.on("unhandledRejection", errore => {
 (async () => {
   try {
     caricaDatabase();
-    startFdoPortal({ databaseFile: DATABASE_FILE, port: PORTALE_FDO_PORT });
+    startFdoPortal({ databaseFile: DATABASE_FILE, port: PORTALE_FDO_PORT, client, arrestsChannelId: CANALE_ARRESTI });
     await registraComandi();
     await client.login(TOKEN);
   } catch (errore) {

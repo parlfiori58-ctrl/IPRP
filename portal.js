@@ -11,6 +11,29 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+
+function generateRecordId(prefix) {
+  return `${prefix}-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
+}
+
+function sameText(a, b) {
+  return String(a ?? "").trim().toLocaleLowerCase("it-IT") === String(b ?? "").trim().toLocaleLowerCase("it-IT");
+}
+
+function calculateAge(dateText) {
+  const match = /^(\d{2})-(\d{2})-(\d{4})$/.exec(String(dateText || ""));
+  if (!match) return null;
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  const year = Number(match[3]);
+  const date = new Date(year, month - 1, day);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+  const now = new Date();
+  let age = now.getFullYear() - year;
+  if (now.getMonth() < month - 1 || (now.getMonth() === month - 1 && now.getDate() < day)) age--;
+  return age;
+}
+
 function formatMoney(value) {
   return new Intl.NumberFormat("it-IT", {
     style: "currency",
@@ -107,23 +130,23 @@ function pageLayout(title, body, active = "dashboard", user = "FDO") {
     .grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px}.card{background:linear-gradient(180deg,rgba(20,38,64,.96),rgba(16,30,51,.96));border:1px solid var(--line);border-radius:18px;padding:19px;box-shadow:var(--shadow)}.span-3{grid-column:span 3}.span-4{grid-column:span 4}.span-5{grid-column:span 5}.span-6{grid-column:span 6}.span-7{grid-column:span 7}.span-8{grid-column:span 8}.span-12{grid-column:span 12}
     .stat-card{position:relative;overflow:hidden}.stat-card:after{content:"";position:absolute;width:110px;height:110px;border-radius:50%;right:-35px;top:-38px;background:radial-gradient(circle,rgba(77,152,255,.25),transparent 70%)}.label{color:var(--muted);font-size:13px}.stat{font-size:37px;font-weight:850;margin-top:7px;letter-spacing:-.03em}.accent-blue{color:#80b8ff}.accent-green{color:#74e6b5}.accent-red{color:#ff8c97}.accent-yellow{color:#f8dc8c}.accent-purple{color:#c4a6ff}
     .section-head{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:15px}.section-head h2{margin:0;font-size:19px}.subtle{color:var(--muted);font-size:13px}.bars{display:grid;gap:15px}.bar-row{display:grid;grid-template-columns:120px minmax(0,1fr) 45px;gap:12px;align-items:center}.track{height:12px;border-radius:999px;background:#071426;border:1px solid var(--line);overflow:hidden}.fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--blue),var(--cyan))}
-    .search{display:flex;gap:9px;flex-wrap:wrap}.input,select{min-width:180px;flex:1;background:#09162a;color:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;font:inherit;outline:none}.input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(77,152,255,.1)}.button,button{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:12px;padding:12px 16px;background:linear-gradient(135deg,var(--blue),#3374df);color:white;font-weight:750;text-decoration:none;cursor:pointer;box-shadow:0 10px 24px rgba(77,152,255,.18)}.button.secondary{background:var(--panel2);box-shadow:none;border:1px solid var(--line)}
+    .search{display:flex;gap:9px;flex-wrap:wrap}.input,select{min-width:180px;flex:1;background:#09162a;color:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;font:inherit;outline:none}.input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(77,152,255,.1)}.button,button{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:12px;padding:12px 16px;background:linear-gradient(135deg,var(--blue),#3374df);color:white;font-weight:750;text-decoration:none;cursor:pointer;box-shadow:0 10px 24px rgba(77,152,255,.18)}.button.secondary{background:var(--panel2);box-shadow:none;border:1px solid var(--line)}.button.danger{background:#7f2430;box-shadow:none}.button.success{background:#176b4b;box-shadow:none}.actions{display:flex;gap:10px;flex-wrap:wrap}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.field{display:grid;gap:7px}.field.full{grid-column:1/-1}.field label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}.field textarea{min-height:110px;resize:vertical}.input,textarea,select{width:100%;background:#09162a;color:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 13px;font:inherit;outline:none}.notice{padding:12px 14px;border-radius:10px;border:1px solid rgba(56,217,150,.28);background:rgba(56,217,150,.08);color:#b9f4d7;margin-bottom:16px}.notice.error{border-color:rgba(255,102,116,.35);background:rgba(255,102,116,.08);color:#ffc0c6}
     table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:13px 10px;border-bottom:1px solid var(--line);vertical-align:middle}th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em}.table-wrap{overflow:auto}.status{display:inline-flex;align-items:center;padding:5px 9px;border-radius:999px;font-size:11px;font-weight:800;white-space:nowrap}.ok{color:#7ce8b9;background:rgba(56,217,150,.12)}.bad{color:#ff9da6;background:rgba(255,102,116,.12)}.warn{color:#ffe09b;background:rgba(247,201,93,.12)}
     .kv{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.kv div{border:1px solid var(--line);background:#0a172b;border-radius:12px;padding:12px}.kv small{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}.record{border:1px solid var(--line);background:#0a172b;border-radius:14px;padding:14px;margin-bottom:10px}.record h3{margin:0 0 8px;font-size:16px}.record p{margin:5px 0;color:#dce8f8}.empty{text-align:center;color:var(--muted);padding:28px;border:1px dashed var(--line);border-radius:13px}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}.mobile-head{display:none}
     .donut{width:160px;height:160px;border-radius:50%;display:grid;place-items:center;margin:auto;background:conic-gradient(var(--green) 0 var(--paid),var(--red) var(--paid) 100%);position:relative}.donut:after{content:"";position:absolute;inset:22px;border-radius:50%;background:var(--panel)}.donut-center{position:relative;z-index:2;text-align:center}.donut-center strong{font-size:27px;display:block}
-    @media(max-width:980px){.shell{grid-template-columns:1fr}.sidebar{position:fixed;left:-280px;z-index:50;width:255px;transition:.2s}.sidebar.open{left:0}.content{padding:18px 16px 45px}.mobile-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}.menu-btn{background:var(--panel);border:1px solid var(--line);box-shadow:none;padding:9px 12px}.span-3,.span-4,.span-5,.span-6,.span-7,.span-8{grid-column:span 12}.topbar{align-items:flex-start;flex-direction:column}.kv{grid-template-columns:1fr}}
+    @media(max-width:980px){.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.shell{grid-template-columns:1fr}.sidebar{position:fixed;left:-280px;z-index:50;width:255px;transition:.2s}.sidebar.open{left:0}.content{padding:18px 16px 45px}.mobile-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}.menu-btn{background:var(--panel);border:1px solid var(--line);box-shadow:none;padding:9px 12px}.span-3,.span-4,.span-5,.span-6,.span-7,.span-8{grid-column:span 12}.topbar{align-items:flex-start;flex-direction:column}.kv{grid-template-columns:1fr}}
     @media(max-width:560px){.grid{gap:12px}.card{padding:15px;border-radius:15px}.bar-row{grid-template-columns:90px minmax(0,1fr) 35px}.live{font-size:12px}th,td{padding:11px 8px}}
   </style>
 </head>
 <body>
 <div class="shell">
   <aside class="sidebar" id="sidebar">
-    <div class="brand"><div class="crest">🛡️</div><div><strong>PORTALE FDO</strong><small>IPRP • Centrale operativa</small></div></div>
+    <div class="brand"><div class="crest">FDO</div><div><strong>PORTALE FDO</strong><small>IPRP • Sistema informativo FDO</small></div></div>
     <nav class="nav">${nav}</nav>
     <div class="sidebar-bottom"><div class="userbox"><small>Sessione attiva</small><strong style="display:block;margin-top:3px">${escapeHtml(user)}</strong><a class="logout" href="/logout">Esci dal portale</a></div></div>
   </aside>
   <main class="content">
-    <div class="mobile-head"><strong>🛡️ Portale FDO</strong><button class="menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button></div>
+    <div class="mobile-head"><strong>FDO Portale FDO</strong><button class="menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button></div>
     ${body}
   </main>
 </div>
@@ -133,10 +156,10 @@ function pageLayout(title, body, active = "dashboard", user = "FDO") {
 
 function loginPage(message = "") {
   return `<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#07101f"><title>Accesso • Portale FDO IPRP</title><style>
-  *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:20px;background:radial-gradient(circle at 15% 10%,rgba(77,152,255,.24),transparent 32%),radial-gradient(circle at 90% 0,rgba(168,121,255,.18),transparent 30%),#07101f;color:#f1f6ff;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}.login{width:min(430px,100%);background:linear-gradient(180deg,#142640,#101e33);border:1px solid #213a5c;border-radius:24px;padding:28px;box-shadow:0 30px 90px rgba(0,0,0,.45)}.crest{width:64px;height:64px;border-radius:20px;display:grid;place-items:center;font-size:31px;background:linear-gradient(135deg,#4d98ff,#a879ff);box-shadow:0 16px 38px rgba(77,152,255,.28);margin-bottom:18px}h1{margin:0;font-size:31px;letter-spacing:-.03em}p{color:#9fb3ce;line-height:1.55}.field{margin-top:15px}label{display:block;color:#b8c8dd;font-size:13px;margin-bottom:7px}input{width:100%;border:1px solid #29466e;background:#09162a;color:white;border-radius:13px;padding:13px 14px;font:inherit;outline:none}input:focus{border-color:#4d98ff;box-shadow:0 0 0 3px rgba(77,152,255,.1)}button{width:100%;margin-top:20px;border:0;border-radius:13px;padding:13px;background:linear-gradient(135deg,#4d98ff,#3374df);color:white;font-weight:800;font-size:15px;cursor:pointer}.error{background:rgba(255,102,116,.12);border:1px solid rgba(255,102,116,.3);color:#ffb2b9;padding:10px 12px;border-radius:11px;margin-top:15px}.foot{text-align:center;font-size:12px;color:#7088a9;margin-top:18px}</style></head><body><form class="login" method="post" action="/login"><div class="crest">🛡️</div><h1>Accesso riservato</h1><p>Portale operativo delle Forze dell’Ordine IPRP. Inserisci le credenziali autorizzate.</p>${message ? `<div class="error">${escapeHtml(message)}</div>` : ""}<div class="field"><label>Nome utente</label><input name="username" autocomplete="username" required></div><div class="field"><label>Password</label><input type="password" name="password" autocomplete="current-password" required></div><button type="submit">Accedi al portale</button><div class="foot">Connessione protetta • Archivio sincronizzato con il bot</div></form></body></html>`;
+  *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:20px;background:radial-gradient(circle at 15% 10%,rgba(77,152,255,.24),transparent 32%),radial-gradient(circle at 90% 0,rgba(168,121,255,.18),transparent 30%),#07101f;color:#f1f6ff;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}.login{width:min(430px,100%);background:linear-gradient(180deg,#142640,#101e33);border:1px solid #213a5c;border-radius:24px;padding:28px;box-shadow:0 30px 90px rgba(0,0,0,.45)}.crest{width:64px;height:64px;border-radius:20px;display:grid;place-items:center;font-size:31px;background:linear-gradient(135deg,#4d98ff,#a879ff);box-shadow:0 16px 38px rgba(77,152,255,.28);margin-bottom:18px}h1{margin:0;font-size:31px;letter-spacing:-.03em}p{color:#9fb3ce;line-height:1.55}.field{margin-top:15px}label{display:block;color:#b8c8dd;font-size:13px;margin-bottom:7px}input{width:100%;border:1px solid #29466e;background:#09162a;color:white;border-radius:13px;padding:13px 14px;font:inherit;outline:none}input:focus{border-color:#4d98ff;box-shadow:0 0 0 3px rgba(77,152,255,.1)}button{width:100%;margin-top:20px;border:0;border-radius:13px;padding:13px;background:linear-gradient(135deg,#4d98ff,#3374df);color:white;font-weight:800;font-size:15px;cursor:pointer}.error{background:rgba(255,102,116,.12);border:1px solid rgba(255,102,116,.3);color:#ffb2b9;padding:10px 12px;border-radius:11px;margin-top:15px}.foot{text-align:center;font-size:12px;color:#7088a9;margin-top:18px}</style></head><body><form class="login" method="post" action="/login"><div class="crest">FDO</div><h1>Accesso riservato</h1><p>Portale operativo delle Forze dell’Ordine IPRP. Inserisci le credenziali autorizzate.</p>${message ? `<div class="error">${escapeHtml(message)}</div>` : ""}<div class="field"><label>Nome utente</label><input name="username" autocomplete="username" required></div><div class="field"><label>Password</label><input type="password" name="password" autocomplete="current-password" required></div><button type="submit">Accedi al portale</button><div class="foot">Connessione protetta • Accesso riservato agli operatori autorizzati</div></form></body></html>`;
 }
 
-function startFdoPortal({ databaseFile, port = 3000 }) {
+function startFdoPortal({ databaseFile, port = 3000, client = null, arrestsChannelId = null }) {
   const app = express();
   app.disable("x-powered-by");
   app.use(express.urlencoded({ extended: false, limit: "20kb" }));
@@ -147,10 +170,31 @@ function startFdoPortal({ databaseFile, port = 3000 }) {
 
   const readDb = () => {
     try {
-      return JSON.parse(fs.readFileSync(databaseFile, "utf8"));
+      const db = JSON.parse(fs.readFileSync(databaseFile, "utf8"));
+      db.utenti ||= {};
+      db.richiesteDocumenti ||= {};
+      db.multe ||= {};
+      db.arresti ||= {};
+      db.targhe ||= {};
+      return db;
     } catch {
       return { utenti: {}, richiesteDocumenti: {}, multe: {}, arresti: {}, targhe: {}, ultimoAggiornamento: null };
     }
+  };
+
+  const writeDb = (db) => {
+    db.ultimoAggiornamento = new Date().toISOString();
+    const temp = `${databaseFile}.portal.tmp`;
+    fs.writeFileSync(temp, JSON.stringify(db, null, 2), "utf8");
+    fs.renameSync(temp, databaseFile);
+  };
+
+  const sendDirectMessage = async (userId, payload) => {
+    if (!client) return;
+    try {
+      const user = await client.users.fetch(userId);
+      await user.send(payload);
+    } catch {}
   };
 
   app.get("/health", (req, res) => res.status(200).json({ ok: true, service: "iprp-portale-fdo", time: new Date().toISOString() }));
@@ -197,17 +241,17 @@ function startFdoPortal({ databaseFile, port = 3000 }) {
 
     const recent = [...fines].sort((a,b) => new Date(b.creataIl) - new Date(a.creataIl)).slice(0,5).map(fine => `<div class="record"><h3>${escapeHtml(fine.id)} <span class="status ${fine.stato === "PAGATA" ? "ok" : "warn"}">${escapeHtml(fine.stato)}</span></h3><p><strong>${escapeHtml(fine.nome)} ${escapeHtml(fine.cognome)}</strong> • ${formatMoney(fine.importo)}</p><p class="subtle">${escapeHtml(fine.reato)} • ${formatDate(fine.creataIl)}</p></div>`).join("") || '<div class="empty">Nessuna multa registrata.</div>';
 
-    const body = `<div class="topbar"><div><h1>Dashboard operativa</h1><p>Archivio sincronizzato automaticamente con tutte le registrazioni del bot.</p></div><div class="live"><span class="dot"></span> Sistema online</div></div>
+    const body = `<div class="topbar"><div><h1>Dashboard operativa</h1><p>Quadro riepilogativo delle registrazioni operative.</p></div><div class="live"><span class="dot"></span> Servizio disponibile</div></div>
       <div class="grid">
         <div class="card stat-card span-3"><div class="label">Cittadini registrati</div><div class="stat accent-blue">${citizens}</div></div>
         <div class="card stat-card span-3"><div class="label">Patenti presenti</div><div class="stat accent-green">${licenses}</div></div>
         <div class="card stat-card span-3"><div class="label">Multe pendenti</div><div class="stat accent-red">${pending}</div></div>
         <div class="card stat-card span-3"><div class="label">Arresti registrati</div><div class="stat accent-yellow">${arrests.length}</div></div>
-        <div class="card span-7"><div class="section-head"><h2>Distribuzione archivi</h2><span class="subtle">Aggiornamento in tempo reale</span></div><div class="bars">${bars}</div></div>
+        <div class="card span-7"><div class="section-head"><h2>Consistenza degli archivi</h2><span class="subtle">Dati correnti</span></div><div class="bars">${bars}</div></div>
         <div class="card span-5"><div class="section-head"><h2>Stato multe</h2><span class="subtle">${fines.length} totali</span></div><div class="donut" style="--paid:${paidPercentage}%"><div class="donut-center"><strong>${paidPercentage}%</strong><span class="subtle">pagate</span></div></div><div style="display:flex;justify-content:center;gap:17px;margin-top:15px"><span class="status ok">${paid} pagate</span><span class="status warn">${pending} pendenti</span></div></div>
-        <div class="card span-8"><div class="section-head"><h2>Ricerca rapida cittadino</h2></div><form class="search" action="/cittadini"><input class="input" name="q" placeholder="Nome, cognome, Roblox o ID Discord"><button>Cerca fascicolo</button></form></div>
+        <div class="card span-8"><div class="section-head"><h2>Consultazione fascicolo cittadino</h2></div><form class="search" action="/cittadini"><input class="input" name="q" placeholder="Nome, cognome, Roblox o ID Discord"><button>Cerca fascicolo</button></form></div>
         <div class="card span-4"><div class="label">Veicoli assicurati</div><div class="stat accent-purple">${insured}/${vehicles.length}</div><a class="button secondary" href="/targhe" style="margin-top:13px">Apri registro veicoli</a></div>
-        <div class="card span-12"><div class="section-head"><h2>Ultime multe registrate</h2><a class="button secondary" href="/multe">Vedi tutte</a></div>${recent}</div>
+        <div class="card span-12"><div class="section-head"><h2>Ultimi verbali registrati</h2><a class="button secondary" href="/multe">Vedi tutte</a></div>${recent}</div>
       </div>`;
     res.send(pageLayout("Dashboard", body, "dashboard", req.portalUser));
   });
@@ -226,6 +270,110 @@ function startFdoPortal({ databaseFile, port = 3000 }) {
     res.send(pageLayout("Cittadini", body, "cittadini", req.portalUser));
   });
 
+  app.get("/cittadino/:id/multa", (req, res) => {
+    const db = readDb();
+    const id = req.params.id;
+    const user = db.utenti?.[id];
+    if (!user?.documento) return res.status(404).send(pageLayout("Cittadino non trovato", '<div class="card"><h1>Cittadino non trovato</h1></div>', "cittadini", req.portalUser));
+    const d = user.documento;
+    const body = `<div class="topbar"><div><h1>Nuovo verbale di multa</h1><p>Registrazione amministrativa per ${escapeHtml(d.nome)} ${escapeHtml(d.cognome)}.</p></div><a class="button secondary" href="/cittadino/${encodeURIComponent(id)}">Torna al fascicolo</a></div>
+      <div class="card"><form method="post" class="form-grid">
+        <div class="field"><label>Utente Discord</label><input class="input mono" value="${escapeHtml(id)}" disabled></div>
+        <div class="field"><label>Nome</label><input class="input" name="nome" value="${escapeHtml(d.nome)}" required></div>
+        <div class="field"><label>Cognome</label><input class="input" name="cognome" value="${escapeHtml(d.cognome)}" required></div>
+        <div class="field full"><label>Reato / violazione</label><input class="input" name="reato" maxlength="500" required></div>
+        <div class="field"><label>Importo (€)</label><input class="input" type="number" min="1" max="100000000" name="importo" required></div>
+        <div class="field"><label>Agente operante</label><input class="input" name="agente" maxlength="200" required></div>
+        <div class="field full"><label>Descrizione dei fatti</label><textarea name="descrizione" maxlength="1000" required></textarea></div>
+        <div class="field full"><button type="submit">Registra la multa</button></div>
+      </form></div>`;
+    res.send(pageLayout("Nuova multa", body, "multe", req.portalUser));
+  });
+
+  app.post("/cittadino/:id/multa", async (req, res) => {
+    const db = readDb();
+    const id = req.params.id;
+    const user = db.utenti?.[id];
+    if (!user?.documento) return res.status(404).send("Cittadino non trovato");
+    const d = user.documento;
+    const nome = String(req.body.nome || "").trim();
+    const cognome = String(req.body.cognome || "").trim();
+    const importo = Number(req.body.importo);
+    if (!sameText(nome, d.nome) || !sameText(cognome, d.cognome) || !Number.isFinite(importo) || importo < 1) {
+      return res.status(400).send(pageLayout("Dati non validi", '<div class="card"><div class="notice error">I dati inseriti non corrispondono al documento oppure l’importo non è valido.</div><a class="button" href="/cittadino/'+encodeURIComponent(id)+'/multa">Torna al modulo</a></div>', "multe", req.portalUser));
+    }
+    const fine = {
+      id: generateRecordId("MUL"), userId: id, nome: d.nome, cognome: d.cognome,
+      reato: String(req.body.reato || "").trim(), importo,
+      descrizione: String(req.body.descrizione || "").trim(), agente: String(req.body.agente || "").trim(),
+      agentePortale: req.portalUser, stato: "PENDENTE", creataIl: new Date().toISOString(), pagataIl: null
+    };
+    db.multe[fine.id] = fine;
+    user.multe ||= [];
+    user.multe.push(fine.id);
+    writeDb(db);
+    await sendDirectMessage(id, { content: `È stata registrata una multa a tuo carico. ID: ${fine.id}. Importo: ${formatMoney(fine.importo)}.` });
+    res.redirect(`/cittadino/${encodeURIComponent(id)}?esito=multa`);
+  });
+
+  app.get("/cittadino/:id/arresto", (req, res) => {
+    const db = readDb();
+    const id = req.params.id;
+    const user = db.utenti?.[id];
+    if (!user?.documento) return res.status(404).send(pageLayout("Cittadino non trovato", '<div class="card"><h1>Cittadino non trovato</h1></div>', "cittadini", req.portalUser));
+    const d = user.documento;
+    const age = calculateAge(d.dataNascita);
+    const body = `<div class="topbar"><div><h1>Registrazione arresto</h1><p>Inserimento nel casellario di ${escapeHtml(d.nome)} ${escapeHtml(d.cognome)}.</p></div><a class="button secondary" href="/cittadino/${encodeURIComponent(id)}">Torna al fascicolo</a></div>
+      <div class="card"><form method="post" class="form-grid">
+        <div class="field"><label>Utente arrestato (Discord)</label><input class="input mono" value="${escapeHtml(id)}" disabled></div>
+        <div class="field"><label>Nome</label><input class="input" name="nome" value="${escapeHtml(d.nome)}" required></div>
+        <div class="field"><label>Cognome</label><input class="input" name="cognome" value="${escapeHtml(d.cognome)}" required></div>
+        <div class="field"><label>Data di nascita</label><input class="input" name="dataNascita" value="${escapeHtml(d.dataNascita)}" required></div>
+        <div class="field"><label>Cittadinanza</label><input class="input" name="cittadinanza" value="${escapeHtml(d.cittadinanza)}" required></div>
+        <div class="field"><label>Città di residenza</label><input class="input" name="cittaResidenza" maxlength="100" required></div>
+        <div class="field"><label>Età</label><input class="input" type="number" name="eta" value="${escapeHtml(age)}" min="0" max="150" required></div>
+        <div class="field"><label>Numero di telefono</label><input class="input" name="numeroTelefono" maxlength="100" required></div>
+        <div class="field full"><label>Reati contestati</label><textarea name="reati" maxlength="1000" required></textarea></div>
+        <div class="field full"><label>Descrizione dell’accaduto</label><textarea name="descrizioneAccaduto" maxlength="1000" required></textarea></div>
+        <div class="field full"><label>Firma agente</label><input class="input" name="firmaAgente" maxlength="200" required></div>
+        <div class="field full"><button type="submit">Registra l’arresto</button></div>
+      </form></div>`;
+    res.send(pageLayout("Nuovo arresto", body, "arresti", req.portalUser));
+  });
+
+  app.post("/cittadino/:id/arresto", async (req, res) => {
+    const db = readDb();
+    const id = req.params.id;
+    const user = db.utenti?.[id];
+    if (!user?.documento) return res.status(404).send("Cittadino non trovato");
+    const d = user.documento;
+    const age = calculateAge(d.dataNascita);
+    const valid = sameText(req.body.nome, d.nome) && sameText(req.body.cognome, d.cognome) && sameText(req.body.dataNascita, d.dataNascita) && sameText(req.body.cittadinanza, d.cittadinanza) && Number(req.body.eta) === age;
+    if (!valid) return res.status(400).send(pageLayout("Dati non validi", '<div class="card"><div class="notice error">Le generalità non corrispondono al documento del cittadino.</div><a class="button" href="/cittadino/'+encodeURIComponent(id)+'/arresto">Torna al modulo</a></div>', "arresti", req.portalUser));
+    const now = Date.now();
+    const arrest = {
+      id: generateRecordId("ARR"), userId: id, nome: d.nome, cognome: d.cognome, nomeCognome: `${d.nome} ${d.cognome}`,
+      dataNascita: d.dataNascita, cittadinanza: d.cittadinanza,
+      cittaResidenza: String(req.body.cittaResidenza || "").trim(), eta: age,
+      numeroTelefono: String(req.body.numeroTelefono || "").trim(), reati: String(req.body.reati || "").trim(),
+      descrizioneAccaduto: String(req.body.descrizioneAccaduto || "").trim(), firmaAgente: String(req.body.firmaAgente || "").trim(),
+      agentePortale: req.portalUser, data: formatDate(now), dataEventoTimestamp: now,
+      registratoIl: new Date(now).toISOString(), registratoTimestamp: now
+    };
+    db.arresti[arrest.id] = arrest;
+    user.fedinaPenale ||= [];
+    user.fedinaPenale.push(arrest.id);
+    writeDb(db);
+    await sendDirectMessage(id, { content: `È stato registrato un arresto nella tua fedina penale. ID: ${arrest.id}.` });
+    if (client && arrestsChannelId) {
+      try {
+        const channel = await client.channels.fetch(arrestsChannelId);
+        if (channel?.isTextBased()) await channel.send({ content: `Nuovo arresto registrato dal Portale FDO: ${arrest.nomeCognome} — ID ${arrest.id}` });
+      } catch {}
+    }
+    res.redirect(`/cittadino/${encodeURIComponent(id)}?esito=arresto`);
+  });
+
   app.get("/cittadino/:id", (req, res) => {
     const db = readDb();
     const id = req.params.id;
@@ -239,7 +387,8 @@ function startFdoPortal({ databaseFile, port = 3000 }) {
     const fineCards = fines.length ? fines.map(f => `<div class="record"><h3>${escapeHtml(f.id)} <span class="status ${f.stato === "PAGATA" ? "ok" : "warn"}">${escapeHtml(f.stato)}</span></h3><p><strong>Reato:</strong> ${escapeHtml(f.reato)}</p><p><strong>Importo:</strong> ${formatMoney(f.importo)} • <strong>Data:</strong> ${formatDate(f.creataIl)}</p><p>${escapeHtml(f.descrizione)}</p></div>`).join("") : '<div class="empty">Nessuna multa registrata.</div>';
     const arrestCards = arrests.length ? arrests.map(a => `<div class="record"><h3>${escapeHtml(a.id)}</h3><p><strong>Reati:</strong> ${escapeHtml(a.reati)}</p><p><strong>Registrato:</strong> ${formatDate(a.registratoIl)} • <strong>Agente:</strong> ${escapeHtml(a.firmaAgente)}</p><p>${escapeHtml(a.descrizioneAccaduto)}</p></div>`).join("") : '<div class="empty">Fedina penale pulita.</div>';
     const vehicleCards = vehicles.length ? vehicles.map(v => `<div class="record"><h3>${escapeHtml(v.modello)} • <span class="mono">${escapeHtml(v.targa)}</span></h3><p><strong>Colore:</strong> ${escapeHtml(v.colore)} • <strong>Cerchioni:</strong> ${escapeHtml(v.cerchioni)} • <strong>Gancio:</strong> ${v.gancio ? "Presente" : "Assente"}</p><p><strong>Assicurazione:</strong> ${v.assicurazione?.scadenza > Date.now() ? `${escapeHtml(v.assicurazione.piano)} fino al ${formatDate(v.assicurazione.scadenza)}` : "Non assicurata"}</p></div>`).join("") : '<div class="empty">Nessun veicolo intestato.</div>';
-    const body = `<div class="topbar"><div><h1>${escapeHtml(d.nome)} ${escapeHtml(d.cognome)}</h1><p>Fascicolo completo del cittadino.</p></div><div class="live mono">${escapeHtml(id)}</div></div><div class="grid">
+    const notice = req.query.esito === "multa" ? '<div class="notice">Multa registrata correttamente.</div>' : req.query.esito === "arresto" ? '<div class="notice">Arresto registrato correttamente.</div>' : '';
+    const body = `<div class="topbar"><div><h1>${escapeHtml(d.nome)} ${escapeHtml(d.cognome)}</h1><p>Fascicolo anagrafico e operativo.</p></div><div class="actions"><a class="button" href="/cittadino/${encodeURIComponent(id)}/multa">Registra multa</a><a class="button danger" href="/cittadino/${encodeURIComponent(id)}/arresto">Registra arresto</a></div></div>${notice}<div class="grid">
       <div class="card span-6"><div class="section-head"><h2>Documento</h2><span class="status ok">Approvato</span></div><div class="kv"><div><small>Nome</small>${escapeHtml(d.nome)}</div><div><small>Cognome</small>${escapeHtml(d.cognome)}</div><div><small>Data di nascita</small>${escapeHtml(d.dataNascita)}</div><div><small>Cittadinanza</small>${escapeHtml(d.cittadinanza)}</div><div><small>Roblox</small>${escapeHtml(d.nomeRoblox)}</div><div><small>Approvato il</small>${formatDate(d.approvatoIl)}</div></div></div>
       <div class="card span-6"><div class="section-head"><h2>Patente</h2>${p ? '<span class="status ok">Presente</span>' : '<span class="status bad">Assente</span>'}</div>${p ? `<div class="kv"><div><small>Punti</small>${escapeHtml(p.punti)}/20</div><div><small>Registrata</small>${formatDate(p.registrataIl)}</div><div><small>Stato</small>${p.sequestrataFinoAl > Date.now() ? "Sequestrata" : "Regolare"}</div><div><small>Restituzione</small>${p.sequestrataFinoAl > Date.now() ? formatDate(p.sequestrataFinoAl) : "-"}</div></div>` : '<div class="empty">Nessuna patente registrata.</div>'}</div>
       <div class="card span-4"><div class="label">Saldo bancario</div><div class="stat accent-green">${formatMoney(user.conto?.banca)}</div><div class="subtle">${formatMoney(user.conto?.contanti)} in contanti</div></div>
