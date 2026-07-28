@@ -228,6 +228,25 @@ function startFdoPortal({ databaseFile, port = 3000, client = null, arrestsChann
   const expectedPassword = process.env.PORTALE_PASSWORD || "";
   const sessionSecret = process.env.PORTALE_SECRET || expectedPassword || crypto.randomBytes(32).toString("hex");
 
+  const operationsDir = path.join(path.dirname(databaseFile), "operazioni-elaborate");
+
+  const claimOperation = operationId => {
+    if (!operationId || !/^[a-zA-Z0-9_-]{12,100}$/.test(String(operationId))) return false;
+    try {
+      fs.mkdirSync(operationsDir, { recursive: true });
+      const name = crypto.createHash("sha256").update(`portale:${operationId}`).digest("hex");
+      const file = path.join(operationsDir, `${name}.lock`);
+      const fd = fs.openSync(file, "wx");
+      fs.writeFileSync(fd, JSON.stringify({ operationId, createdAt: new Date().toISOString() }), "utf8");
+      fs.closeSync(fd);
+      return true;
+    } catch (error) {
+      if (error?.code === "EEXIST") return false;
+      console.error("Errore controllo duplicati portale:", error);
+      return false;
+    }
+  };
+
   const readDb = () => {
     try {
       const db = JSON.parse(fs.readFileSync(databaseFile, "utf8"));
@@ -363,8 +382,10 @@ function startFdoPortal({ databaseFile, port = 3000, client = null, arrestsChann
     const user = db.utenti?.[id];
     if (!user?.documento) return res.status(404).send(pageLayout("Cittadino non trovato", '<div class="card"><h1>Cittadino non trovato</h1></div>', "cittadini", req.portalUser));
     const d = user.documento;
+    const operationId = crypto.randomUUID().replaceAll("-", "");
     const body = `<div class="topbar"><div><h1>Nuovo verbale di multa</h1><p>Registrazione amministrativa per ${escapeHtml(d.nome)} ${escapeHtml(d.cognome)}.</p></div><a class="button secondary" href="/cittadino/${encodeURIComponent(id)}">Torna al fascicolo</a></div>
-      <div class="card"><form method="post" class="form-grid">
+      <div class="card"><form method="post" class="form-grid" onsubmit="const b=this.querySelector('button[type=submit]');b.disabled=true;b.textContent='Registrazione in corso…';">
+        <input type="hidden" name="operationId" value="${operationId}">
         <div class="field"><label>Utente Discord</label><input class="input mono" value="${escapeHtml(id)}" disabled></div>
         <div class="field"><label>Nome</label><input class="input" name="nome" value="${escapeHtml(d.nome)}" required></div>
         <div class="field"><label>Cognome</label><input class="input" name="cognome" value="${escapeHtml(d.cognome)}" required></div>
@@ -389,6 +410,11 @@ function startFdoPortal({ databaseFile, port = 3000, client = null, arrestsChann
     if (!sameText(nome, d.nome) || !sameText(cognome, d.cognome) || !Number.isFinite(importo) || importo < 1) {
       return res.status(400).send(pageLayout("Dati non validi", '<div class="card"><div class="notice error">I dati inseriti non corrispondono al documento oppure l’importo non è valido.</div><a class="button" href="/cittadino/'+encodeURIComponent(id)+'/multa">Torna al modulo</a></div>', "multe", req.portalUser));
     }
+    const operationId = String(req.body.operationId || "");
+    if (!claimOperation(`multa-${operationId}`)) {
+      return res.redirect(`/cittadino/${encodeURIComponent(id)}?esito=duplicato`);
+    }
+
     const fine = {
       id: generateRecordId("MUL"), userId: id, nome: d.nome, cognome: d.cognome,
       reato: String(req.body.reato || "").trim(), importo,
@@ -413,8 +439,10 @@ function startFdoPortal({ databaseFile, port = 3000, client = null, arrestsChann
     if (!user?.documento) return res.status(404).send(pageLayout("Cittadino non trovato", '<div class="card"><h1>Cittadino non trovato</h1></div>', "cittadini", req.portalUser));
     const d = user.documento;
     const age = calculateAge(d.dataNascita);
+    const operationId = crypto.randomUUID().replaceAll("-", "");
     const body = `<div class="topbar"><div><h1>Registrazione arresto</h1><p>Inserimento nel casellario di ${escapeHtml(d.nome)} ${escapeHtml(d.cognome)}.</p></div><a class="button secondary" href="/cittadino/${encodeURIComponent(id)}">Torna al fascicolo</a></div>
-      <div class="card"><form method="post" class="form-grid">
+      <div class="card"><form method="post" class="form-grid" onsubmit="const b=this.querySelector('button[type=submit]');b.disabled=true;b.textContent='Registrazione in corso…';">
+        <input type="hidden" name="operationId" value="${operationId}">
         <div class="field"><label>Utente arrestato (Discord)</label><input class="input mono" value="${escapeHtml(id)}" disabled></div>
         <div class="field"><label>Nome</label><input class="input" name="nome" value="${escapeHtml(d.nome)}" required></div>
         <div class="field"><label>Cognome</label><input class="input" name="cognome" value="${escapeHtml(d.cognome)}" required></div>
@@ -440,6 +468,11 @@ function startFdoPortal({ databaseFile, port = 3000, client = null, arrestsChann
     const age = calculateAge(d.dataNascita);
     const valid = sameText(req.body.nome, d.nome) && sameText(req.body.cognome, d.cognome) && sameText(req.body.dataNascita, d.dataNascita) && sameText(req.body.cittadinanza, d.cittadinanza) && Number(req.body.eta) === age;
     if (!valid) return res.status(400).send(pageLayout("Dati non validi", '<div class="card"><div class="notice error">Le generalità non corrispondono al documento del cittadino.</div><a class="button" href="/cittadino/'+encodeURIComponent(id)+'/arresto">Torna al modulo</a></div>', "arresti", req.portalUser));
+    const operationId = String(req.body.operationId || "");
+    if (!claimOperation(`arresto-${operationId}`)) {
+      return res.redirect(`/cittadino/${encodeURIComponent(id)}?esito=duplicato`);
+    }
+
     const now = Date.now();
     const arrest = {
       id: generateRecordId("ARR"), userId: id, nome: d.nome, cognome: d.cognome, nomeCognome: `${d.nome} ${d.cognome}`,
@@ -485,7 +518,13 @@ function startFdoPortal({ databaseFile, port = 3000, client = null, arrestsChann
     const fineCards = fines.length ? fines.map(f => `<div class="record"><h3>${escapeHtml(f.id)} <span class="status ${f.stato === "PAGATA" ? "ok" : "warn"}">${escapeHtml(f.stato)}</span></h3><p><strong>Reato:</strong> ${escapeHtml(f.reato)}</p><p><strong>Importo:</strong> ${formatMoney(f.importo)} • <strong>Data:</strong> ${formatDate(f.creataIl)}</p><p>${escapeHtml(f.descrizione)}</p></div>`).join("") : '<div class="empty">Nessuna multa registrata.</div>';
     const arrestCards = arrests.length ? arrests.map(a => `<div class="record"><h3>${escapeHtml(a.id)}</h3><p><strong>Reati:</strong> ${escapeHtml(a.reati)}</p><p><strong>Registrato:</strong> ${formatDate(a.registratoIl)} • <strong>Agente:</strong> ${escapeHtml(a.firmaAgente)}</p><p>${escapeHtml(a.descrizioneAccaduto)}</p></div>`).join("") : '<div class="empty">Fedina penale pulita.</div>';
     const vehicleCards = vehicles.length ? vehicles.map(v => `<div class="record"><h3>${escapeHtml(v.modello)} • <span class="mono">${escapeHtml(v.targa)}</span></h3><p><strong>Colore:</strong> ${escapeHtml(v.colore)} • <strong>Cerchioni:</strong> ${escapeHtml(v.cerchioni)} • <strong>Gancio:</strong> ${v.gancio ? "Presente" : "Assente"}</p><p><strong>Assicurazione:</strong> ${v.assicurazione?.scadenza > Date.now() ? `${escapeHtml(v.assicurazione.piano)} fino al ${formatDate(v.assicurazione.scadenza)}` : "Non assicurata"}</p></div>`).join("") : '<div class="empty">Nessun veicolo intestato.</div>';
-    const notice = req.query.esito === "multa" ? '<div class="notice">Multa registrata correttamente.</div>' : req.query.esito === "arresto" ? '<div class="notice">Arresto registrato correttamente.</div>' : '';
+    const notice = req.query.esito === "multa"
+      ? '<div class="notice">Multa registrata correttamente.</div>'
+      : req.query.esito === "arresto"
+        ? '<div class="notice">Arresto registrato correttamente.</div>'
+        : req.query.esito === "duplicato"
+          ? '<div class="notice">La richiesta era già stata elaborata. Non è stata creata una seconda registrazione.</div>'
+          : '';
     const body = `<div class="topbar"><div><h1>${escapeHtml(d.nome)} ${escapeHtml(d.cognome)}</h1><p>Fascicolo anagrafico e operativo.</p></div><div class="actions"><a class="button" href="/cittadino/${encodeURIComponent(id)}/multa">Registra multa</a><a class="button danger" href="/cittadino/${encodeURIComponent(id)}/arresto">Registra arresto</a></div></div>${notice}<div class="grid">
       <div class="card span-6"><div class="section-head"><h2>Documento</h2><span class="status ok">Approvato</span></div><div class="kv"><div><small>Nome</small>${escapeHtml(d.nome)}</div><div><small>Cognome</small>${escapeHtml(d.cognome)}</div><div><small>Data di nascita</small>${escapeHtml(d.dataNascita)}</div><div><small>Cittadinanza</small>${escapeHtml(d.cittadinanza)}</div><div><small>Roblox</small>${escapeHtml(d.nomeRoblox)}</div><div><small>Approvato il</small>${formatDate(d.approvatoIl)}</div></div></div>
       <div class="card span-6"><div class="section-head"><h2>Patente</h2>${p ? '<span class="status ok">Presente</span>' : '<span class="status bad">Assente</span>'}</div>${p ? `<div class="kv"><div><small>Punti</small>${escapeHtml(p.punti)}/20</div><div><small>Registrata</small>${formatDate(p.registrataIl)}</div><div><small>Stato</small>${p.sequestrataFinoAl > Date.now() ? "Sequestrata" : "Regolare"}</div><div><small>Restituzione</small>${p.sequestrataFinoAl > Date.now() ? formatDate(p.sequestrataFinoAl) : "-"}</div></div>` : '<div class="empty">Nessuna patente registrata.</div>'}</div>

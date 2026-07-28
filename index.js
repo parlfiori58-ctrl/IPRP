@@ -74,6 +74,7 @@ const DATABASE_FILE = path.join(DATA_DIR, "iprp_civili.json");
 const DATABASE_TEMP_FILE = `${DATABASE_FILE}.tmp`;
 const DATABASE_PREVIOUS_FILE = path.join(DATA_DIR, "iprp_civili.previous.json");
 const BACKUP_DIR = path.join(DATA_DIR, "backups");
+const OPERAZIONI_DIR = path.join(DATA_DIR, "operazioni-elaborate");
 const NUMERO_BACKUP_DA_MANTENERE = 30;
 const INTERVALLO_BACKUP_MS = 10 * 60 * 1000;
 const TIMER_MASSIMO = 2_147_000_000;
@@ -374,6 +375,26 @@ function avviaBackupPeriodico() {
 }
 
 /*━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  BLOCCO ANTI-DUPLICAZIONE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━*/
+
+function prenotaOperazioneUnica(chiave) {
+  try {
+    fs.mkdirSync(OPERAZIONI_DIR, { recursive: true });
+    const nome = crypto.createHash("sha256").update(String(chiave)).digest("hex");
+    const file = path.join(OPERAZIONI_DIR, `${nome}.lock`);
+    const fd = fs.openSync(file, "wx");
+    fs.writeFileSync(fd, JSON.stringify({ chiave, creataIl: new Date().toISOString() }), "utf8");
+    fs.closeSync(fd);
+    return true;
+  } catch (errore) {
+    if (errore?.code === "EEXIST") return false;
+    console.error("❌ Errore controllo duplicati:", errore);
+    return false;
+  }
+}
+
+/*━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   FUNZIONI UTILI
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━*/
 
@@ -598,7 +619,8 @@ async function controllaPermessoComando(interaction) {
     "rimuovi-arrestato",
     "aggiungi-punti-patente",
     "immatricola-auto",
-    "reset-auto"
+    "reset-auto",
+    "embed"
   ]);
 
   const poliziaOStaff = new Set([
@@ -1076,6 +1098,11 @@ const comandi = [
 
   new SlashCommandBuilder().setName("assicurazione").setDescription("Acquista o rinnova l’assicurazione di un tuo veicolo")
     .addStringOption(o => o.setName("targa").setDescription("Targa del tuo veicolo").setRequired(true).setMaxLength(20)),
+
+  new SlashCommandBuilder().setName("embed").setDescription("Invia un embed in un canale")
+    .addStringOption(o => o.setName("colore").setDescription("Colore: nome, HEX o #HEX").setRequired(true).setMaxLength(30))
+    .addChannelOption(o => o.setName("canale").setDescription("Canale in cui inviare l’embed").setRequired(true))
+    .addStringOption(o => o.setName("messaggio").setDescription("Testo dell’embed").setRequired(true).setMaxLength(4000)),
 
   new SlashCommandBuilder().setName("portale-fdo").setDescription("Apre il portale operativo FDO"),
 
@@ -1657,6 +1684,8 @@ async function sequestraPatente(interaction) {
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━*/
 
 async function registraMulta(interaction) {
+  if (!prenotaOperazioneUnica(`discord-multa:${interaction.id}`)) return;
+
   const destinatario = interaction.options.getUser("utente", true);
   if (destinatario.bot) {
     await interaction.reply({ content: "❌ Non puoi multare un bot.", flags: MessageFlags.Ephemeral });
@@ -1960,6 +1989,8 @@ async function resetAuto(interaction) {
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━*/
 
 async function registraArresto(interaction) {
+  if (!prenotaOperazioneUnica(`discord-arresto:${interaction.id}`)) return;
+
   const destinatario = interaction.options.getUser("utente-arrestato", true);
   if (destinatario.bot) {
     await interaction.reply({ content: "❌ Non puoi registrare l’arresto di un bot.", flags: MessageFlags.Ephemeral });
@@ -2103,6 +2134,79 @@ async function mostraPortaleFdo(interaction) {
 }
 
 /*━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  INVIO EMBED STAFF
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━*/
+
+function interpretaColoreEmbed(valore) {
+  const coloriNominati = {
+    rosso: 0xED4245,
+    blu: 0x3498DB,
+    verde: 0x57F287,
+    giallo: 0xFEE75C,
+    viola: 0x9B59B6,
+    arancione: 0xE67E22,
+    nero: 0x000000,
+    bianco: 0xFFFFFF,
+    grigio: 0x2B2D31,
+    discord: 0x5865F2
+  };
+
+  const testo = String(valore).trim().toLowerCase();
+  if (coloriNominati[testo] !== undefined) return coloriNominati[testo];
+
+  const esadecimale = testo.replace(/^#/, "");
+  if (/^[0-9a-f]{6}$/i.test(esadecimale)) {
+    return Number.parseInt(esadecimale, 16);
+  }
+
+  return null;
+}
+
+async function inviaEmbed(interaction) {
+  const coloreTesto = interaction.options.getString("colore", true);
+  const canale = interaction.options.getChannel("canale", true);
+  const messaggio = interaction.options.getString("messaggio", true).trim();
+  const colore = interpretaColoreEmbed(coloreTesto);
+
+  if (colore === null) {
+    await interaction.reply({
+      content: "❌ Colore non valido. Usa ad esempio `rosso`, `blu`, `#5865F2` oppure `5865F2`.",
+      flags: MessageFlags.Ephemeral
+    });
+    return;
+  }
+
+  if (!canale.isTextBased() || typeof canale.send !== "function") {
+    await interaction.reply({
+      content: "❌ Devi selezionare un canale testuale in cui il bot può scrivere.",
+      flags: MessageFlags.Ephemeral
+    });
+    return;
+  }
+
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+  try {
+    await canale.send({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(colore)
+          .setDescription(messaggio)
+      ]
+    });
+
+    // Discord richiede che il comando venga riconosciuto: la risposta privata
+    // viene eliminata subito, quindi nel server resta soltanto l’embed inviato.
+    await interaction.deleteReply();
+  } catch (errore) {
+    console.error("❌ Errore invio embed:", errore);
+    await interaction.editReply(
+      "❌ Non sono riuscito a inviare l’embed. Controlla i permessi del bot nel canale scelto."
+    );
+  }
+}
+
+/*━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   PRESENZA BOT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━*/
 
@@ -2162,7 +2266,8 @@ client.on(Events.InteractionCreate, async interaction => {
         "controlla-targa": controllaTarga,
         "assicurazione": mostraAssicurazioni,
         "reset-auto": resetAuto,
-        "portale-fdo": mostraPortaleFdo
+        "portale-fdo": mostraPortaleFdo,
+        "embed": inviaEmbed
       };
 
       const funzione = azioni[interaction.commandName];
