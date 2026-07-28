@@ -1102,7 +1102,9 @@ const comandi = [
   new SlashCommandBuilder().setName("embed").setDescription("Invia un embed in un canale")
     .addStringOption(o => o.setName("colore").setDescription("Colore: nome, HEX o #HEX").setRequired(true).setMaxLength(30))
     .addChannelOption(o => o.setName("canale").setDescription("Canale in cui inviare l’embed").setRequired(true))
-    .addStringOption(o => o.setName("messaggio").setDescription("Testo dell’embed").setRequired(true).setMaxLength(4000)),
+    .addStringOption(o => o.setName("messaggio").setDescription("Testo dell’embed").setRequired(true).setMaxLength(4000))
+    .addAttachmentOption(o => o.setName("immagine-iniziale").setDescription("Immagine piccola in alto a destra (opzionale)").setRequired(false))
+    .addAttachmentOption(o => o.setName("immagine").setDescription("Immagine grande sotto il messaggio (opzionale)").setRequired(false)),
 
   new SlashCommandBuilder().setName("portale-fdo").setDescription("Apre il portale operativo FDO"),
 
@@ -2162,15 +2164,36 @@ function interpretaColoreEmbed(valore) {
   return null;
 }
 
+function estensioneImmagine(allegato) {
+  const estensione = path.extname(allegato?.name ?? "").toLowerCase();
+  const consentite = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp"]);
+  return consentite.has(estensione) ? estensione : ".png";
+}
+
+function allegatoImmagineValido(allegato) {
+  if (!allegato) return true;
+  return !allegato.contentType || allegato.contentType.startsWith("image/");
+}
+
 async function inviaEmbed(interaction) {
   const coloreTesto = interaction.options.getString("colore", true);
   const canale = interaction.options.getChannel("canale", true);
   const messaggio = interaction.options.getString("messaggio", true).trim();
+  const immagineIniziale = interaction.options.getAttachment("immagine-iniziale");
+  const immagineGrande = interaction.options.getAttachment("immagine");
   const colore = interpretaColoreEmbed(coloreTesto);
 
   if (colore === null) {
     await interaction.reply({
       content: "❌ Colore non valido. Usa ad esempio `rosso`, `blu`, `#5865F2` oppure `5865F2`.",
+      flags: MessageFlags.Ephemeral
+    });
+    return;
+  }
+
+  if (!allegatoImmagineValido(immagineIniziale) || !allegatoImmagineValido(immagineGrande)) {
+    await interaction.reply({
+      content: "❌ Puoi allegare solamente immagini PNG, JPG, GIF o WEBP.",
       flags: MessageFlags.Ephemeral
     });
     return;
@@ -2187,12 +2210,33 @@ async function inviaEmbed(interaction) {
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
+    const embed = new EmbedBuilder()
+      .setColor(colore)
+      .setDescription(messaggio);
+
+    const files = [];
+
+    if (immagineIniziale) {
+      const nomeFile = `embed-iniziale${estensioneImmagine(immagineIniziale)}`;
+      files.push({
+        attachment: immagineIniziale.url,
+        name: nomeFile
+      });
+      embed.setThumbnail(`attachment://${nomeFile}`);
+    }
+
+    if (immagineGrande) {
+      const nomeFile = `embed-immagine${estensioneImmagine(immagineGrande)}`;
+      files.push({
+        attachment: immagineGrande.url,
+        name: nomeFile
+      });
+      embed.setImage(`attachment://${nomeFile}`);
+    }
+
     await canale.send({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(colore)
-          .setDescription(messaggio)
-      ]
+      embeds: [embed],
+      files
     });
 
     // Discord richiede che il comando venga riconosciuto: la risposta privata
@@ -2201,7 +2245,7 @@ async function inviaEmbed(interaction) {
   } catch (errore) {
     console.error("❌ Errore invio embed:", errore);
     await interaction.editReply(
-      "❌ Non sono riuscito a inviare l’embed. Controlla i permessi del bot nel canale scelto."
+      "❌ Non sono riuscito a inviare l’embed. Controlla i permessi del bot e che le immagini non siano troppo pesanti."
     );
   }
 }

@@ -23,3 +23,9 @@ CORREZIONI:
 
 IMPORTANTE SUI DATI:
 Il disco persistente di Render è necessario per conservare il file JSON attraverso deploy e riavvii. Senza disco persistente il filesystem di Render è temporaneo.
+
+AGGIORNAMENTO COMANDO /embed
+- immagine-iniziale: allegato facoltativo mostrato piccolo in alto a destra.
+- immagine: allegato facoltativo mostrato grande sotto il testo.
+- Formati supportati: PNG, JPG, JPEG, GIF e WEBP.
+- Da iPhone puoi selezionare direttamente una foto come allegato nelle opzioni del comando.
