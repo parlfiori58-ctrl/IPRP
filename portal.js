@@ -316,18 +316,22 @@ function startFdoPortal({ databaseFile, port = 3000, client = null, arrestsChann
   app.get("/health", (req, res) => res.status(200).json({ ok: true, service: "iprp-portale-fdo", time: new Date().toISOString() }));
   app.get("/login", (req, res) => res.send(loginPage()));
   app.post("/login", (req, res) => {
-    if (!expectedPassword) return res.status(503).send(loginPage("PORTALE_PASSWORD non è configurata su Render."));
+    if (!expectedPassword) return res.status(503).send(loginPage("PORTALE_PASSWORD non è configurata nel file .env."));
     const username = String(req.body.username || "");
     const password = String(req.body.password || "");
     if (!safeEqual(username, expectedUser) || !safeEqual(password, expectedPassword)) {
       return res.status(401).send(loginPage("Credenziali non valide."));
     }
     const token = createSession(username, sessionSecret);
-    res.setHeader("Set-Cookie", `iprp_session=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=43200`);
+    // Il flag Secure è obbligatorio solo con HTTPS. In sviluppo locale il
+    // browser usa HTTP, quindi il cookie deve restare leggibile su localhost.
+    const secureCookie = process.env.PORTALE_HTTPS === "true" ? "; Secure" : "";
+    res.setHeader("Set-Cookie", `iprp_session=${encodeURIComponent(token)}; Path=/; HttpOnly${secureCookie}; SameSite=Lax; Max-Age=43200`);
     return res.redirect("/");
   });
   app.get("/logout", (req, res) => {
-    res.setHeader("Set-Cookie", "iprp_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0");
+    const secureCookie = process.env.PORTALE_HTTPS === "true" ? "; Secure" : "";
+    res.setHeader("Set-Cookie", `iprp_session=; Path=/; HttpOnly${secureCookie}; SameSite=Lax; Max-Age=0`);
     res.redirect("/login");
   });
 

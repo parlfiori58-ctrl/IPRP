@@ -28,33 +28,23 @@ const TOKEN = process.env.DISCORD_TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
 const GUILD_ID = process.env.GUILD_ID;
 
-const CANALE_DOCUMENTI = "1530177967760609460";
-const CANALE_LOG_PATENTI = "1530179492692365342";
-const CANALE_LOG_BONIFICI = "1360353750107291850";
-const CANALE_ARRESTI = "1374036900775460904";
+const CANALE_DOCUMENTI = "1543228824471339088";
+const CANALE_LOG_PATENTI = "1544081942545301584";
+const CANALE_LOG_BONIFICI = "1544082087290871950";
+const CANALE_ARRESTI = "1544082160191803452";
 
-const PORTALE_FDO_URL = process.env.PORTALE_FDO_URL || `http://localhost:${process.env.PORT || 3000}`;
 const PORTALE_FDO_PORT = Number(process.env.PORT || 3000);
+const PORTALE_FDO_URL = process.env.PORTALE_FDO_URL || `http://localhost:${PORTALE_FDO_PORT}`;
 
 const RUOLO_TURISTA = "1360353746005004372";
 const RUOLO_CITTADINO = "1360353746005004373";
 const RUOLO_POLIZIA = "1360353746005004377";
-const NOME_RUOLO_STAFF = "Staff";
+const RUOLO_STAFF = "1543228774743810140";
 
 const RUOLI_AUTOMATICI = [
-  "1360353746005004372",
-  "1360353746005004370",
-  "1360353746038685800",
-  "1360353746030170316",
-  "1360353746030170322",
-  "1360353746021912726",
-  "1360353746021912719",
-  "1360353746005004375",
-  "1360353745996746862",
-  "1360353745996746861",
-  "1360353745996746860",
-  "1360353745996746859",
-  "1360353745996746853"
+  "1543228774164725783",
+  "1543228774164725780",
+  "1543228774164725781"
 ];
 
 const BANCA_INIZIALE = 15000;
@@ -67,7 +57,9 @@ const ASSICURAZIONI = {
 };
 const DURATA_ASSICURAZIONE_MS = 30 * 24 * 60 * 60 * 1000;
 
-const DATA_DIR = process.env.DATA_DIR || process.cwd();
+// In locale i dati restano nella cartella del progetto, anche quando VS Code
+// viene avviato da una directory diversa.
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
 const DATABASE_FILE = path.join(DATA_DIR, "iprp_civili.json");
@@ -577,10 +569,7 @@ async function ottieniMembroInterazione(interaction) {
 
 function eStaff(membro) {
   if (membro.permissions.has(PermissionFlagsBits.Administrator)) return true;
-  return membro.roles.cache.some(ruolo => {
-    const nome = ruolo.name.trim().toLowerCase();
-    return nome === NOME_RUOLO_STAFF.toLowerCase() || nome === "ruolo staff" || nome.includes("staff");
-  });
+  return membro.roles.cache.has(RUOLO_STAFF);
 }
 
 function ruoloUgualeOSuperiore(membro, ruoloBase) {
@@ -637,7 +626,7 @@ async function controllaPermessoComando(interaction) {
   if (soloStaff.has(comando)) {
     if (!eStaff(membro)) {
       await interaction.reply({
-        content: `❌ Solo chi possiede il ruolo **${NOME_RUOLO_STAFF}** può usare questo comando.`,
+        content: `❌ Solo chi possiede il ruolo <@&${RUOLO_STAFF}> può usare questo comando.`,
         flags: MessageFlags.Ephemeral
       });
       return false;
@@ -648,7 +637,7 @@ async function controllaPermessoComando(interaction) {
   if (poliziaOStaff.has(comando)) {
     if (!await haLivelloPoliziaOStaff(interaction, membro)) {
       await interaction.reply({
-        content: `❌ Serve il ruolo <@&${RUOLO_POLIZIA}> o superiore, oppure il ruolo **${NOME_RUOLO_STAFF}**.`,
+        content: `❌ Serve il ruolo <@&${RUOLO_POLIZIA}> o superiore, oppure il ruolo <@&${RUOLO_STAFF}>.`,
         flags: MessageFlags.Ephemeral
       });
       return false;
