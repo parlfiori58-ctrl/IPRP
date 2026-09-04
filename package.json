@@ -5,7 +5,6 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "node --watch index.js",
     "check": "node --check index.js && node --check portal.js"
   },
   "engines": {
